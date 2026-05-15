@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nickname": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "nickname", "createdAt"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "An appointment room where users gather to decide date/time/location.",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed", "finalized"] },
+        "deadline": { "type": "string", "format": "date-time" },
+        "inviteCode": { "type": "string" },
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["hostId", "title", "status", "createdAt"]
+    },
+    "Availability": {
+      "title": "Availability",
+      "description": "User's selected dates, times, and locations for a room",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "possibleDates": { "type": "array", "items": { "type": "string" } },
+        "possibleTimes": { "type": "array", "items": { "type": "string" } },
+        "preferredLocations": { "type": "array", "items": { "type": "string" } },
+        "isSubmitted": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "possibleDates", "possibleTimes", "preferredLocations", "isSubmitted", "updatedAt"]
+    },
+    "FinalResult": {
+      "title": "FinalResult",
+      "description": "The final decided time and location for a room",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "finalDate": { "type": "string" },
+        "finalTime": { "type": "string" },
+        "finalLocation": { "type": "string" },
+        "recommendationReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "finalDate", "finalTime", "finalLocation", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/Room" },
+      "description": "Appointment gathering rooms"
+    },
+    "rooms/{roomId}/availabilities/{availabilityId}": {
+      "schema": { "$ref": "#/entities/Availability" },
+      "description": "User availabilities within a room"
+    },
+    "rooms/{roomId}/finals/{finalId}": {
+      "schema": { "$ref": "#/entities/FinalResult" },
+      "description": "Final consensus context for a room"
+    }
+  }
+}

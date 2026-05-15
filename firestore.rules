@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // User schema
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'nickname', 'createdAt'])
+        && data.keys().size() == 3
+        && data.uid == request.auth.uid
+        && data.nickname is string && data.nickname.size() <= 100
+        && data.createdAt == request.time;
+    }
+    
+    match /users/{userId} {
+      allow read: if isSignedIn() && userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming());
+      allow update: if isSignedIn() && userId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['nickname']) &&
+        incoming().nickname is string && incoming().nickname.size() <= 100;
+      allow delete: if isSignedIn() && userId == request.auth.uid;
+    }
+
+    // Room schema
+    function isValidRoom(data) {
+      return data.keys().hasAll(['hostId', 'title', 'status', 'createdAt'])
+        && data.hostId == request.auth.uid
+        && data.title is string && data.title.size() <= 200
+        && data.status in ['open', 'closed', 'finalized']
+        && (data.deadline == null || data.deadline is timestamp || data.deadline is string)
+        && (data.inviteCode == null || data.inviteCode is string)
+        && (!('participantIds' in data) || (data.participantIds is list && data.participantIds.size() <= 50))
+        && data.createdAt == request.time;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(roomId) && isValidRoom(incoming());
+      allow update: if isSignedIn() && (
+        (existing().hostId == request.auth.uid &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'title', 'deadline', 'inviteCode', 'participantIds']) &&
+         (incoming().status in ['open', 'closed', 'finalized']) &&
+         (!('title' in incoming()) || (incoming().title is string && incoming().title.size() <= 200)) &&
+         (!('participantIds' in incoming()) || (incoming().participantIds is list && incoming().participantIds.size() <= 50))
+        ) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['participantIds']) &&
+         incoming().participantIds is list && 
+         incoming().participantIds.size() <= 50)
+      );
+      allow delete: if isSignedIn() && existing().hostId == request.auth.uid;
+    }
+    
+    // Availability schema
+    function isValidAvailability(data, availabilityId) {
+      return data.keys().hasAll(['userId', 'possibleDates', 'possibleTimes', 'preferredLocations', 'isSubmitted', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && data.userId == availabilityId
+        && data.possibleDates is list && data.possibleDates.size() <= 50
+        && data.possibleTimes is list && data.possibleTimes.size() <= 50
+        && data.preferredLocations is list && data.preferredLocations.size() <= 20
+        && data.isSubmitted is bool
+        && data.updatedAt == request.time;
+    }
+    
+    match /rooms/{roomId}/availabilities/{availabilityId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(availabilityId) && isValidAvailability(incoming(), availabilityId) && exists(/databases/$(database)/documents/rooms/$(roomId));
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && existing().userId == availabilityId &&
+        // Cannot update if room is closed
+        get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'open' &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['possibleDates', 'possibleTimes', 'preferredLocations', 'isSubmitted', 'updatedAt']) &&
+        incoming().possibleDates is list && incoming().possibleDates.size() <= 50 &&
+        incoming().possibleTimes is list && incoming().possibleTimes.size() <= 50 &&
+        incoming().preferredLocations is list && incoming().preferredLocations.size() <= 20 &&
+        incoming().isSubmitted is bool &&
+        incoming().updatedAt == request.time;
+    }
+
+    // FinalResult schema
+    function isValidFinal(data, roomId) {
+      return data.keys().hasAll(['roomId', 'finalDate', 'finalTime', 'finalLocation', 'createdAt'])
+        && data.roomId == roomId
+        && data.finalDate is string && data.finalDate.size() <= 100
+        && data.finalTime is string && data.finalTime.size() <= 100
+        && data.finalLocation is string && data.finalLocation.size() <= 300
+        && (!('recommendationReason' in data) || (data.recommendationReason is string && data.recommendationReason.size() <= 1000))
+        && data.createdAt == request.time;
+    }
+    
+    match /rooms/{roomId}/finals/{finalId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(finalId) && 
+        get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid &&
+        isValidFinal(incoming(), roomId);
+      allow update: if isSignedIn() && existing().roomId == roomId &&
+        get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['finalDate', 'finalTime', 'finalLocation', 'recommendationReason']) &&
+        incoming().finalDate is string && incoming().finalDate.size() <= 100 &&
+        incoming().finalTime is string && incoming().finalTime.size() <= 100 &&
+        incoming().finalLocation is string && incoming().finalLocation.size() <= 300;
+    }
+  }
+}

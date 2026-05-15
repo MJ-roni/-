@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #f8f9fa;
+  --color-on-background: #191c1d;
+  --color-surface: #f8f9fa;
+  --color-on-surface: #191c1d;
+  --color-surface-container: #edeeef;
+  --color-surface-container-low: #f3f4f5;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e7e8e9;
+  --color-surface-container-highest: #e1e3e4;
+  --color-surface-dim: #d9dadb;
+  --color-on-surface-variant: #464555;
+  
+  --color-primary: #4343d5;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #5d5fef;
+  --color-on-primary-container: #faf7ff;
+  --color-primary-fixed-dim: #c1c1ff;
+  
+  --color-secondary: #735c00;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #ffd338;
+  --color-on-secondary-container: #715b00;
+  --color-secondary-fixed-dim: #edc225;
+
+  --color-outline: #767586;
+  --color-outline-variant: #c7c4d7;
+  
+  --font-headline: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Be Vietnam Pro', sans-serif;
+  --font-label: 'Be Vietnam Pro', sans-serif;
+}
+
+@layer utilities {
+  .chunky-shadow {
+    box-shadow: 0 4px 0 0 #2e2bc2;
+  }
+  .chunky-shadow:active {
+    box-shadow: 0 0px 0 0 #2e2bc2;
+    transform: translateY(2px);
+  }
+  .ai-glow {
+    box-shadow: 0 0 20px rgba(93, 95, 239, 0.2);
+    border: 1px solid rgba(93, 95, 239, 0.1);
+  }
+}
