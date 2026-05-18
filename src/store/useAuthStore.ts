@@ -11,6 +11,13 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => {
+  // Check redirect result to catch any silent redirect errors
+  import('firebase/auth').then(({ getRedirectResult }) => {
+    getRedirectResult(auth).catch((error) => {
+      console.error("Redirect login error:", error);
+    });
+  });
+
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       try {
@@ -38,32 +45,31 @@ export const useAuthStore = create<AuthState>((set) => {
     signIn: async () => {
       try {
         const provider = new GoogleAuthProvider();
-        // iframe 내부(AI 스튜디오 미리보기 등)에서는 popup, 실제 배포된 Vercel 등에서는 redirect 사용
-        const isIframe = window !== window.top;
         
-        if (isIframe) {
-          await signInWithPopup(auth, provider);
-        } else {
-          await signInWithRedirect(auth, provider);
-        }
+        // Always try popup first, as it avoids Safari ITP (Intelligent Tracking Prevention) issues 
+        // which cause the "infinite redirect loop" bug.
+        await signInWithPopup(auth, provider);
+        
       } catch (error: any) {
-        console.error('Sign in with popup error, attempting redirect...', error);
+        console.error('Sign in with popup error...', error);
+        
+        if (error?.message?.includes('disallowed_useragent') || error?.code === 'auth/disallowed-useragent') {
+          throw error;
+        }
+        
+        // Only fallback to redirect if popup is blocked or explicitly fails due to COOP.
+        // Ignore if user just closed the popup manually.
         if (error.code === 'auth/popup-blocked' || error.message?.includes('Cross-Origin-Opener-Policy')) {
           try {
+            console.log('Falling back to redirect...');
             const provider = new GoogleAuthProvider();
             await signInWithRedirect(auth, provider);
           } catch (redirectError) {
              console.error('Sign in with redirect error', redirectError);
+             throw redirectError;
           }
         } else {
-           // It might be unauthorized domain error or something else.
-           // Fallback to redirect just in case
-           try {
-             const provider = new GoogleAuthProvider();
-             await signInWithRedirect(auth, provider);
-           } catch (redirectErr) {
-             console.error('Sign in error', error);
-           }
+           throw error;
         }
       }
     },

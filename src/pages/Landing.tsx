@@ -1,19 +1,79 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { Calendar, MapPin, Sparkles } from 'lucide-react';
+import { Calendar, MapPin, Sparkles, AlertCircle, Copy, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Landing() {
   const { signIn } = useAuthStore();
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [ignoreWarning, setIgnoreWarning] = useState(false);
+
+  const handleSignIn = async () => {
+    setAuthError(null);
+    try {
+      await signIn();
+    } catch (error: any) {
+      if (error?.message?.includes('disallowed_useragent') || error?.code === 'auth/disallowed-useragent') {
+        setAuthError('in_app_browser');
+        setIgnoreWarning(false);
+      } else {
+        setAuthError('unknown');
+      }
+    }
+  };
+
+  const isInAppBrowser = () => {
+    if (ignoreWarning) return false;
+    const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
+    return /KAKAOTALK|Instagram|NAVER|FBAN|FBAV|Line|Daum|Twitter|Snapchat/i.test(ua);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-background text-on-background font-body flex flex-col items-center justify-center p-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-surface-container-lowest rounded-3xl shadow-sm border border-surface-container-highest overflow-hidden"
+        className="max-w-md w-full bg-surface-container-lowest rounded-3xl shadow-sm border border-surface-container-highest overflow-hidden relative"
       >
-        <div className="p-8 text-center bg-surface-container-lowest border-b border-surface-container-highest text-on-surface">
+        {authError === 'in_app_browser' || isInAppBrowser() ? (
+          <div className="absolute inset-0 bg-surface-container-lowest z-10 p-8 flex flex-col items-center justify-center text-center space-y-6">
+            <div className="w-16 h-16 bg-error-container text-on-error-container rounded-full flex items-center justify-center">
+              <AlertCircle size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold mb-2">인앱 브라우저 제한 안내</h3>
+              <p className="text-on-surface-variant text-sm mb-4 break-keep">
+                카카오톡, 인스타그램 등의 브라우저에서는 구글 로그인이 원활하지 않습니다. 아래 버튼을 눌러 링크를 복사한 후 <b>사파리(Safari)</b>나 <b>크롬(Chrome)</b>에서 열어주세요.
+              </p>
+            </div>
+            <button
+              onClick={handleCopyLink}
+              className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+            >
+              {copied ? <Check size={20} /> : <Copy size={20} />}
+              {copied ? '링크가 복사되었습니다!' : '링크 복사하기'}
+            </button>
+            <button
+              onClick={() => {
+                setIgnoreWarning(true);
+                setAuthError(null);
+                handleSignIn();
+              }}
+              className="text-primary text-sm underline underline-offset-2 mt-4"
+            >
+              그래도 계속 시도하기
+            </button>
+          </div>
+        ) : null}
+
+        <div className="p-8 text-center bg-surface-container-lowest border-b border-surface-container-highest text-on-surface relative">
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="w-12 h-12 relative flex items-center justify-center shrink-0">
               <div className="absolute w-8 h-8 rounded-full bg-[#5D5FEF] opacity-80 -translate-x-2"></div>
@@ -37,11 +97,14 @@ export default function Landing() {
           </div>
 
           <button 
-            onClick={signIn}
-            className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-xl transition-all chunky-shadow active:scale-[0.98] flex items-center justify-center gap-2"
+            onClick={handleSignIn}
+            className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-xl transition-all chunky-shadow active:scale-[0.98] flex items-center justify-center gap-2 relative"
           >
             Google 계정으로 시작하기
           </button>
+          {authError === 'unknown' && (
+            <p className="text-error text-sm text-center font-medium mt-2">로그인 중 오류가 발생했습니다. 다시 시도해주세요.</p>
+          )}
         </div>
       </motion.div>
     </div>
