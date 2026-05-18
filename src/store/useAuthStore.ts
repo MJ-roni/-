@@ -11,6 +11,17 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => {
+  // Edge나 AdGuard 등에서 IndexedDB 접근이 안되어 Firebase 초기화가 무한 대기하는 경우를 대비한 타임아웃
+  setTimeout(() => {
+    set((state) => {
+      if (state.loading) {
+        console.warn('Auth initialization timeout - forcing load state to false to prevent infinite loop.');
+        return { loading: false };
+      }
+      return state;
+    });
+  }, 3000);
+
   // Check redirect result to catch any silent redirect errors
   import('firebase/auth').then(({ getRedirectResult }) => {
     getRedirectResult(auth).catch((error) => {
@@ -58,9 +69,12 @@ export const useAuthStore = create<AuthState>((set) => {
           throw error;
         }
         
-        // Only fallback to redirect if popup is blocked or explicitly fails due to COOP.
-        // Ignore if user just closed the popup manually.
-        if (error.code === 'auth/popup-blocked' || error.message?.includes('Cross-Origin-Opener-Policy')) {
+        // Only fallback to redirect if it explicitly fails due to COOP.
+        // If it's a popup blocker (like AdGuard), redirect will ALSO fail due to strict tracking prevention!
+        // So we inform the user to disable AdGuard.
+        if (error.code === 'auth/popup-blocked') {
+          throw new Error('popup-blocked');
+        } else if (error.message?.includes('Cross-Origin-Opener-Policy')) {
           try {
             console.log('Falling back to redirect...');
             const provider = new GoogleAuthProvider();

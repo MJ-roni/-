@@ -17,6 +17,8 @@ export default function Landing() {
       if (error?.message?.includes('disallowed_useragent') || error?.code === 'auth/disallowed-useragent') {
         setAuthError('in_app_browser');
         setIgnoreWarning(false);
+      } else if (error?.message === 'popup-blocked' || error?.code === 'auth/popup-blocked') {
+        setAuthError('popup_blocked');
       } else {
         setAuthError('unknown');
       }
@@ -104,6 +106,9 @@ export default function Landing() {
           </button>
           {authError === 'unknown' && (
             <p className="text-error text-sm text-center font-medium mt-2">로그인 중 오류가 발생했습니다. 다시 시도해주세요.</p>
+          )}
+          {authError === 'popup_blocked' && (
+            <p className="text-error text-sm text-center font-medium mt-2 leading-tight">팝업 차단 또는 광고 차단 프로그램이 감지되었습니다.<br/>브라우저 설정에서 <b>팝업 차단을 해제</b>하거나 <b>AdGuard 등을 끄고</b> 다시 시도해주세요.</p>
           )}
         </div>
       </motion.div>
