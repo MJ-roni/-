@@ -4,11 +4,12 @@ let ai: GoogleGenAI | null = null;
 
 function getAi() {
   if (!ai) {
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY is missing");
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : undefined);
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY is missing. In Vercel, please ensure GEMINI_API_KEY is added to Environment Variables and you must REDEPLOY the project so the build can inject the key.");
       throw new Error("GEMINI_API_KEY is not configured.");
     }
-    ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    ai = new GoogleGenAI({ apiKey: apiKey });
   }
   return ai;
 }
