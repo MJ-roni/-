@@ -19,6 +19,9 @@ export const useAuthStore = create<AuthState>((set) => {
   });
 
   onAuthStateChanged(auth, async (user) => {
+    // 렌더링 블로킹 방지를 위해 먼저 user 상태와 로딩 상태 업데이트
+    set({ user, loading: false });
+    
     if (user) {
       try {
         const userDocRef = doc(db, 'users', user.uid);
@@ -33,10 +36,8 @@ export const useAuthStore = create<AuthState>((set) => {
         }
       } catch (error) {
         console.error("Error setting up user profile", error);
-        // Do not throw handleFirestoreError here as it might crash the listener, just log
       }
     }
-    set({ user, loading: false });
   });
 
   return {

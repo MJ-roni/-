@@ -48,8 +48,21 @@ export default function Dashboard() {
       setRooms(data);
       setLoading(false);
     }, (err) => {
-      handleFirestoreError(err, OperationType.LIST, 'rooms');
       setLoading(false);
+      
+      const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? String((err as any).message) : String(err);
+      if (errorMessage.includes('requires an index') || errorMessage.includes('FAILED_PRECONDITION')) {
+        addToast('⚠️ 데이터베이스 인덱스가 설정되지 않았습니다. Firebase 콘솔에서 인덱스 생성 링크를 클릭해야 합니다.', 'error');
+        console.error("Firebase Index Error:", errorMessage);
+      } else {
+        addToast('목록을 불러오는 중 오류가 발생했습니다.', 'error');
+      }
+
+      try {
+        handleFirestoreError(err, OperationType.LIST, 'rooms');
+      } catch (handleErr) {
+        console.error(handleErr);
+      }
     });
     return () => unsubscribe();
   }, [user]);
